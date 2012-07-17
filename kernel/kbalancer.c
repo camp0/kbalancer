@@ -1,6 +1,8 @@
 /*
  *  kbalancer - Balance IPv6 Traffic between different Interfaces on Kernel Space.
  *
+ *  Copyright (C) 2007 Luis Campo Giralte <luis.camp0.2009@gmail.com>
+ *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
  *  as published by the Free Software Foundation; either version 2
@@ -38,7 +40,11 @@
  *  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  *
- *  Written by Luis Campo Giralte <luis.camp0.2009@gmail.com> 2007 
+ */
+ 
+/*
+ *  Changes:
+ *
  *
  */
 #include <linux/module.h>
