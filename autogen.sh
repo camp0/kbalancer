@@ -1,7 +1,5 @@
 #! /bin/sh
 
-libtoolize && 
-aclocal -I m4 \
-&& autoheader \
+autoheader \
 && automake --add-missing \
 && autoconf 

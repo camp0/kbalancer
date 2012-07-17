@@ -1,4 +1,4 @@
 AUTOMAKE_OPTIONS = gnu
 
-EXTRA_DIST = ioctlkbalancer.h
+noinst_HEADERS = ioctlkbalancer.h
 

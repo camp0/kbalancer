@@ -1,0 +1,16 @@
+Kbalancer balance IPv6 traffic between several interfaces.
+
+http://tldp.org/HOWTO/Linux+IPv6-HOWTO/
+http://www.nautilus6.org/doc/nepl-howto/nepl-howto.html
+
+For configuring the driver and the user space utilities:
+
+mknod -m 666 /dev/kbalancer c 253 0
+insmod kbalancer.ko interface=eth3 ipv6_interface=2007:aaaa:bbbb::1
+./balancerctl add eth0 master 200
+./balancerctl add eth1 slave 202
+./balancerctl add eth2 slave 204
+
+The eth3 is the IPv6 public IP to the Nemo network.
+devices eth0,eth1 and eth2 have different links in order to support McoA.
+Notice that the number should correspond with the bid.
