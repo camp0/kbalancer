@@ -1,0 +1,32 @@
+AC_INIT([kbalancer],[0.1],[luis.camp0.2009@gmail.com],[],[])
+AM_INIT_AUTOMAKE(kbalancer,0.1)
+
+AC_CONFIG_HEADER(config.h)
+
+AC_PREREQ(2.59)
+
+AC_PROG_INSTALL
+
+AC_LANG([C])
+AC_PROG_CC
+AC_PROG_MAKE_SET
+AC_SUBST([AM_CFLAGS], [-Wall -fPIC])
+
+AC_OUTPUT([
+Makefile
+src/Makefile
+])
+
+echo "
+  Kbalancer 
+  ($PACKAGE_NAME) version $PACKAGE_VERSION
+  Platform................: $host
+  Prefix..................: $prefix
+  C preprocessor..........: $CPP
+  C Compiler..............: $CC
+  C preprocessor flags....: $CPPFLAGS
+  C compiler flags........: $CFLAGS
+  Linker flags............: $LDFLAGS 
+  Extra libraries.........: $LIBS 
+"
+
