@@ -85,6 +85,7 @@ MODULE_DESCRIPTION("Balance IPv6 packets on Wireless Interfaces");
 #define MAX_LINK_QUALITY 100
 #define MAX_BURST_ADAPTATIVE_PACKETS 10
 
+#define KBALANCER_DEBUG 1
 #ifdef KBALANCER_DEBUG
 # 	define KDEBUG(fmt, args...) printk( KERN_DEBUG MODULE_NAME ": " fmt, ## args) 
 #else
@@ -385,7 +386,7 @@ int kbalancer_proc_rules_read(char *buf, char **start, off_t offset, int count, 
 	len = 0;
         list_for_each (pos, &k_rule_list.list) {
                 rule = list_entry(pos, struct kbalancer_rule, list);
-		len += sprintf(buf + len,"%d %d %d %d\n",rule->protocol,rule->destination_port,rule->policy,rule->__matches);
+		len += sprintf(buf + len,"%d %d %d %ld\n",rule->protocol,rule->destination_port,rule->policy,rule->__matches);
         }
 	*eof = 1;	
 	return len;
@@ -394,7 +395,7 @@ int kbalancer_proc_rules_read(char *buf, char **start, off_t offset, int count, 
 int kbalancer_proc_policy_read(char *buf, char **start, off_t offset, int count, int *eof, void *data){ 
 	int len;
 
-	len = sprintf(buf,"Policy:%s Dropped Packets:%06d",kpolicies[global_policy].name,dropped_packets);
+	len = sprintf(buf,"Policy:%s Dropped Packets:%06ld",kpolicies[global_policy].name,dropped_packets);
 
 	return len;
 }
@@ -708,7 +709,11 @@ static int kbalancer_device_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0))
+static int kbalancer_device_ioctl(struct file *filp, unsigned int cmd, unsigned long args) {
+#else
 static int kbalancer_device_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long args) {
+#endif
 	int retval;
 	struct user_kbalancer_dev user_data;
 	struct user_kbalancer_rule user_rule;
@@ -854,7 +859,12 @@ static void kbalancer_setup_cdev(struct cdev *dev,
 static struct file_operations kbalancer_file_operations = {
 	.owner   = THIS_MODULE,
 	.open    = kbalancer_device_open,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0))
+	.unlocked_ioctl = kbalancer_device_ioctl,
+	.compat_ioctl = kbalancer_device_ioctl,
+#else
 	.ioctl	 = kbalancer_device_ioctl,
+#endif
 	.release = kbalancer_device_release,
 };
 
@@ -878,6 +888,34 @@ static inline int ipv6_addr_equal(const struct in6_addr *a1,
 		a1->s6_addr32[1] == a2->s6_addr32[1] &&
                 a1->s6_addr32[2] == a2->s6_addr32[2] &&
                 a1->s6_addr32[3] == a2->s6_addr32[3]);
+}
+
+void *kbalancer_get_network_header(struct sk_buff *s){
+	void *data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0))
+        data = skb_network_header(s);
+#else
+        data = s->network_header;
+#endif
+#else
+        data = s->nh.ipv6h;
+#endif
+	return data;
+}
+
+void *kbalancer_get_transport_header(struct sk_buff *s){
+        void *data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0))
+        data = skb_transport_header(s);
+#else
+        data = s->network_header;
+#endif
+#else
+        data = s->nh.ipv6h;
+#endif
+        return data;
 }
 
 unsigned int kbalancer_packet_handler_hook(unsigned int hooknum,
@@ -913,11 +951,7 @@ unsigned int kbalancer_packet_handler_hook(unsigned int hooknum,
 		sock_buff = *skb;
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))	
-		ip6 = (struct ipv6hdr*)sock_buff->network_header;
-#else
-		ip6 = sock_buff->nh.ipv6h;
-#endif
+		ip6 = (struct ipv6hdr*)kbalancer_get_network_header(sock_buff);
 		if (ipv6_addr_equal(&ipv6nemoaddr,&ip6->daddr)) {
 			return NF_ACCEPT;
 		}
@@ -945,33 +979,21 @@ unsigned int kbalancer_packet_handler_hook(unsigned int hooknum,
 					proto_str = "icmpv6";
 					break;
 				case IPPROTO_TCP:
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))
-					tcp = (struct tcphdr*)(sock_buff->transport_header);
-#else
-					tcp = (struct tcphdr*)(ip6 + sizeof(struct ipv6hdr));
-#endif
+					tcp = (struct tcphdr*)kbalancer_get_transport_header(sock_buff);
 					destination_port = ntohs(tcp->dest);
 					proto_str = "tcp";
 					tcp_packet_bytes = sock_buff->len;
 					tcp_packet = 1;
 					break;
 				case IPPROTO_UDP:
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))
-					udp = (struct udphdr*)(sock_buff->transport_header);
-#else
-					udp = (struct udphdr*)(ip6 + sizeof(struct ipv6hdr));
-#endif
+					udp = (struct udphdr*)kbalancer_get_transport_header(sock_buff);
 					destination_port = ntohs(udp->dest);
 					proto_str = "udp";
 					udp_packet_bytes = sock_buff->len;
 					udp_packet = 1;
 					break;
 				case IPPROTO_DCCP:
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))
-					dccp = (struct dccp_hdr*)(sock_buff->transport_header);
-#else
-					dccp = (struct dccp_hdr*)(ip6 + sizeof(struct dccp_hdr));
-#endif
+					dccp = (struct udphdr*)kbalancer_get_transport_header(sock_buff);
 					destination_port = ntohs(dccp->dccph_dport);
 					dccp_packet_bytes = sock_buff->len;
 					proto_str = "dccp";
@@ -1079,8 +1101,7 @@ static void kbalancer_cleanup(void)
 	free_kbalancer_rules();
 	remove_proc_entry(device_name, kbalancer_proc_policy_entry);
 	remove_proc_entry(device_name, kbalancer_proc_rules_entry);
-	remove_proc_entry(device_name, NULL);	
-	//remove_proc_entry(device_name, proc_net);	
+	//remove_proc_entry(device_name, init_net.proc_net);	
 	KINFO("Unload %s\n",banner);	
 }
 
