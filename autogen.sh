@@ -1,5 +1,6 @@
 #! /bin/sh
 
-autoheader \
+aclocal \
+&& autoheader \
 && automake --add-missing \
 && autoconf 

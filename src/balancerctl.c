@@ -74,15 +74,14 @@ void help(char *binary) {
 }
 
 void send_to_driver(int cmd,struct user_kbalanacer_dev *user) {
-	int fd;
+	int fd,ret;
 
 	fd = open("/dev/kbalancer",O_RDWR);
         if (fd == ERROR) {
                 perror("open:");
                 exit(-2);
         }
-	ioctl(fd,cmd,user);
-        
+	ret = ioctl(fd,cmd,user);
         close(fd);
 	return;
 }

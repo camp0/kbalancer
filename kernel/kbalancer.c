@@ -86,12 +86,12 @@ MODULE_DESCRIPTION("Balance IPv6 packets on Wireless Interfaces");
 #define MAX_BURST_ADAPTATIVE_PACKETS 10
 
 #ifdef KBALANCER_DEBUG
-# 	define KDEBUG(fmt, args...) printk( KERN_DEBUG MODULE_NAME ": " fmt, args) 
+# 	define KDEBUG(fmt, args...) printk( KERN_DEBUG MODULE_NAME ": " fmt, ## args) 
 #else
 #  	define KDEBUG(fmt, args...) /* not debugging: nothing */
 #endif
 
-#define KINFO(fmt, args...) printk (KERN_INFO MODULE_NAME ": " fmt, args) 
+#define KINFO(fmt, args...) printk (KERN_INFO MODULE_NAME ": " fmt, ## args) 
 
 static struct nf_hook_ops netfilter_ops;
 static char *device_name = "kbalancer";
@@ -165,7 +165,7 @@ void kbalancer_update_adaptative_packets(char *by) {
 			k_devices[i].__last_adaptative_packets = 0;
 			k_devices[i].__balancer_flag = 0;
 		}
-	KINFO("Rechecking %d Devs for Adaptative %s Packets(%d)\n",ndevs,by,MaxAdaptativePackets,NULL);
+	KINFO("Rechecking %d Devs for Adaptative %s Packets(%d)\n",ndevs,by,MaxAdaptativePackets);
 	return;
 }
 
@@ -178,7 +178,7 @@ static int PreviousPolicy = 0;
 static int LastRunByPolicy = 0;
 
 void *PL_PolicyAdaptative(int *value) {
-        register int i,j;
+        register int i;
 	int available = 0;
 	int choose = 0;
 	int looplimit = 0;
@@ -200,7 +200,7 @@ reschedule:
 	looplimit ++;
 	if (available == 0){
 		if (looplimit > 1) {
-			KINFO("DROPING Packets on Adaptative Mode\n",NULL);
+			KINFO("DROPING Packets on Adaptative Mode\n");
 			(*value) = -1;
 			return 0;
 		}
@@ -216,8 +216,6 @@ reschedule:
 /* One Master and One Slave */
 void *PL_PolicyMasterSlave(int *value) {
         register int i;
-	char *str = "";
-	int aux;
 
 	(*value) = PreviousPolicy;
 	for (i=0;i< k_devices_n;i++)
@@ -234,7 +232,7 @@ void *PL_PolicyMasterSlave(int *value) {
 				(*value) = i;
 		}
         
-        KDEBUG("OverFlow on PL_PolicyMasterSlave, dev = %d\n",(*value),NULL);
+        KDEBUG("OverFlow on PL_PolicyMasterSlave, dev = %d\n",(*value));
         return 0;
 }
 
@@ -254,7 +252,7 @@ void *PL_PolicyBalancer(int *value) {
 			}
         
         (*value) = PreviousPolicy;
-        KDEBUG("OverFlow on PL_PolicyBalancer!\n",NULL);
+        KDEBUG("OverFlow on PL_PolicyBalancer!\n");
         return 0;
 }
 
@@ -312,14 +310,14 @@ void *PL_PolicySingle(int *value) {
                         	return 0;
                		}
         
-        KDEBUG("OverFlow on PL_PolicySingle!\n",NULL);
+        KDEBUG("OverFlow on PL_PolicySingle!\n");
         (*value) = PreviousPolicy;
         return 0;
 }
 
 void *PL_PolicyDrop(int *value) {
 	(*value) = 0; 
-        KDEBUG("Dropping Packets!\n",NULL);
+        KDEBUG("Dropping Packets!\n");
 	return 0;
 }
 
@@ -349,7 +347,7 @@ void PL_UpdateGlobalPolicy() {
                         	if (k_devices[i].policy == DEVICE_POLICY_SLAVE) slaves++;
                 	}
         
-	KDEBUG("Updating Global Policy Master=%d, Slaves= %d\n",masters,slaves,NULL);
+	KDEBUG("Updating Global Policy Master=%d, Slaves= %d\n",masters,slaves);
         policy = PL_GetGlobalPolicy (masters,slaves);
         global_policy = policy;
 
@@ -488,7 +486,7 @@ int mod_kbalancer_device (char *name, int policy, int bid) {
 		return -EINVAL;
 
 	if ((policy != DEVICE_POLICY_MASTER)&&(policy != DEVICE_POLICY_SLAVE)) {
-                KDEBUG("Unknow Policy\n",NULL);
+                KDEBUG("Unknown Policy\n");
                 return -EINVAL;
         }
 	
@@ -517,19 +515,19 @@ int add_kbalancer_device (char *name, int policy ,int bid) {
 	int slot ;
 
 	if (strcmp(name,interface) == 0) {
-		KINFO("Device %s can not be Inside Nemo Device\n",name,NULL);
+		KINFO("Device %s can not be Inside Nemo Device\n",name);
 		return -EINVAL;
 	}
 
 	if ((policy != DEVICE_POLICY_MASTER)&&(policy != DEVICE_POLICY_SLAVE)) {
-		KINFO("Unknow Policy\n",NULL);
+		KINFO("Unknown Policy\n");
 		return -EINVAL; 
 	}
 
 	slot = find_free_device();
 	k_devices[slot].dev = DEV_GET_BY_NAME(name);
 	if (k_devices[slot].dev == NULL) {
-		KINFO("Unknow %s Device\n",name,NULL);
+		KINFO("Unknown %s Device\n",name);
                 return -EINVAL;
         }
 	k_devices[slot].__tcp_packets = 0;	
@@ -725,7 +723,7 @@ static int kbalancer_device_ioctl(struct inode *inode, struct file *filp, unsign
 				retval = add_kbalancer_device(user_data.dev_name,user_data.policy,user_data.bid);
 				if (retval == 0) {
 					KINFO("Adding %s Device, Policy = %d, Bid = %d\n",
-						user_data.dev_name,user_data.policy,user_data.bid,NULL);
+						user_data.dev_name,user_data.policy,user_data.bid);
 					PL_UpdateGlobalPolicy();
 					return 0;
 				} 
@@ -738,11 +736,11 @@ static int kbalancer_device_ioctl(struct inode *inode, struct file *filp, unsign
                         if (retval == 0) {
 				retval = del_kbalancer_device (user_data.dev_name);
 				if (retval == 0) {
-					KINFO("Removing %s Device\n",user_data.dev_name,NULL);
+					KINFO("Removing %s Device\n",user_data.dev_name);
 					PL_UpdateGlobalPolicy();
 					return 0;
 				}		
-				KINFO("Can not Remove %s Device\n",user_data.dev_name,NULL);	
+				KINFO("Can not Remove %s Device\n",user_data.dev_name);	
 			}
 			break;
 		case KBALANCER_IOMODDEV:
@@ -753,11 +751,11 @@ static int kbalancer_device_ioctl(struct inode *inode, struct file *filp, unsign
                                 retval = mod_kbalancer_device (user_data.dev_name,user_data.policy,user_data.bid);
                                 if (retval == 0) {
                                         KINFO("Change %s Device, Policy = %d, Bid = %d\n",user_data.dev_name,
-						user_data.policy,user_data.bid,NULL);
+						user_data.policy,user_data.bid);
                                         PL_UpdateGlobalPolicy();
                                         return 0;
                                 }
-                                KINFO("Can not Change %s Device\n",user_data.dev_name,NULL);
+                                KINFO("Can not Change %s Device\n",user_data.dev_name);
                         }
                         break;
 		case KBALANCER_IOSETQOS:
@@ -769,10 +767,10 @@ static int kbalancer_device_ioctl(struct inode *inode, struct file *filp, unsign
                                 retval = mod_linkquality_devices (user_data.dev_name,user_data.link_quality);
                                 if (retval == 0) {
                                         KINFO("Init %s Device, Link Quality = %d\n",user_data.dev_name,
-						user_data.link_quality,NULL);
+						user_data.link_quality);
 					return 0;
 				}
-				KINFO("Can not Init %s Device Link Quality\n",user_data.dev_name,NULL);
+				KINFO("Can not Init %s Device Link Quality\n",user_data.dev_name);
 			}
 			break;
 		case KBALANCER_IOADDRULE:
@@ -783,10 +781,10 @@ static int kbalancer_device_ioctl(struct inode *inode, struct file *filp, unsign
                                 retval = add_kbalancer_rule (user_rule.protocol,user_rule.destination_port,user_rule.to_device);
                                 if (retval == 0) {
                                         KINFO("Adding Rule, Protocol %d Port %d Policy %d\n",user_rule.protocol,
-                                                user_rule.destination_port,user_rule.to_device,NULL);
+                                                user_rule.destination_port,user_rule.to_device);
                                         return 0;
                                 }
-                                KINFO("Can not Add Rule\n",NULL); 
+                                KINFO("Can not Add Rule\n"); 
                         }
 			break;
 		case KBALANCER_IODELRULE:
@@ -797,10 +795,10 @@ static int kbalancer_device_ioctl(struct inode *inode, struct file *filp, unsign
                                 retval = del_kbalancer_rule (user_rule.protocol,user_rule.destination_port);
                                 if (retval == 0) {
                                         KINFO("Deleting Rule, Protocol %d Port %d\n",user_rule.protocol,
-                                                user_rule.destination_port,NULL);
+                                                user_rule.destination_port);
                                         return 0;
                                 }
-                                KINFO("Can not Delete Rule\n",NULL); 
+                                KINFO("Can not Delete Rule\n"); 
                         }
 			break;
 		case KBALANCER_IORESET:
@@ -817,7 +815,7 @@ static int kbalancer_device_ioctl(struct inode *inode, struct file *filp, unsign
 			last_global_policy = global_policy;
 			global_policy = GLOBAL_POLICY_ADAPTATIVE;
 			kbalancer_update_adaptative_packets("Starting");
-			KINFO("Adaptative Mode On\n",NULL);
+			KINFO("Adaptative Mode On\n");
 			retval = 0;
 			break;
 		case KBALANCER_IOADAPOFF:
@@ -825,7 +823,7 @@ static int kbalancer_device_ioctl(struct inode *inode, struct file *filp, unsign
 				return -EPERM;
 			if (global_policy == GLOBAL_POLICY_ADAPTATIVE) {
 				global_policy = last_global_policy;
-				KINFO("Adaptative Mode Off\n",NULL);
+				KINFO("Adaptative Mode Off\n");
 				retval = 0;
 			}
 			break;	
@@ -849,14 +847,14 @@ static void kbalancer_setup_cdev(struct cdev *dev,
 	err = cdev_add (dev, devno, 1);
 	/* Fail gracefully if need be */
 	if (err)
-		KINFO("Error %d adding %s%d", err,device_name, device_minor,NULL);
+		KINFO("Error %d adding %s%d", err,device_name, device_minor);
 }
 
 
 static struct file_operations kbalancer_file_operations = {
 	.owner   = THIS_MODULE,
 	.open    = kbalancer_device_open,
-	//.ioctl	 = kbalancer_device_ioctl,
+	.ioctl	 = kbalancer_device_ioctl,
 	.release = kbalancer_device_release,
 };
 
@@ -1019,17 +1017,16 @@ static int kbalancer_init(void)
 	dev_t dev = MKDEV(device_major, device_minor);
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23))&&(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	KINFO("Kernel Version not supported for Kbalancer\n",NULL);
+	KINFO("Kernel Version not supported for Kbalancer\n");
 	return -1;
 #endif
 	if((interface == NULL)||(ipv6_interface == NULL)) {
-                KINFO("Use insmod kbalancer interface=<dev> ipv6_interface=<ipv6address>\n",NULL);
+                KINFO("Use insmod kbalancer interface=<dev> ipv6_interface=<ipv6address>\n");
                 return -EINVAL;
         }
 	result = in6_pton(ipv6_interface,-1,&ipv6nemoaddr,-1,NULL);
 	if (result == 0) {
-//	if (!inet_pton(AF_INET6, ipv6_interface, &ipv6nemoaddr)) {
-                KINFO("Can not assing address %s\n",ipv6_interface,NULL);
+                KINFO("Can not assing address %s\n",ipv6_interface);
                 return -EINVAL;
         }
 
@@ -1040,7 +1037,7 @@ static int kbalancer_init(void)
 		device_major = MAJOR(dev);
 	}
 	if (result < 0) {
-		KINFO("%s: unable to get major %d\n",device_name, device_major,NULL);
+		KINFO("%s: unable to get major %d\n",device_name, device_major);
 		return result;
 	}
 	if (device_major == 0)
@@ -1067,8 +1064,8 @@ static int kbalancer_init(void)
 	
 	nf_register_hook(&netfilter_ops);
 
-	KINFO("Running %s with major = %d\n",banner,device_major,NULL);	
-	KINFO("Nemo on %s with IPv6 %s\n",interface,ipv6_interface,NULL);	
+	KINFO("Running %s with major = %d\n",banner,device_major);	
+	KINFO("Nemo on %s with IPv6 %s\n",interface,ipv6_interface);	
 	return 0;
 }
 
@@ -1084,7 +1081,7 @@ static void kbalancer_cleanup(void)
 	remove_proc_entry(device_name, kbalancer_proc_rules_entry);
 	remove_proc_entry(device_name, NULL);	
 	//remove_proc_entry(device_name, proc_net);	
-	KINFO("Unload %s\n",banner,NULL);	
+	KINFO("Unload %s\n",banner);	
 }
 
 module_init(kbalancer_init);
