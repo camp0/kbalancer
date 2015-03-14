@@ -1,0 +1,1 @@
+Balance IPv6 traffic between different interfaces on kernel space. This solution is valid with MoCA(Mutiple care of address) on NeMO solutions.
